@@ -1,11 +1,11 @@
 ## ImageDataDupes
 A simple **cross-platform** (Windows, Linux, MacOS and many other) PHP script to find dupilicates of  photo exact duplicates. Unlike most tools, this one will compare just image (by MD5 hash - compromise between speed and collisions statistically once per 10^64 files), so **changing metadata, like adding title or GPS data, still counts as duplicate**. It bases on **Exiftool** raw image hash, which hashes only image data, not whole file. It also means it uses rich reading abilities of the **Exiftool**, which means [enormous list of supported file types](https://exiftool.org/#supported), inlcuding all standard lossy files, **raw camera files**. It just reads file, deletion is up to you, **no changes are made by script**. 
 
-###Where it rocks
+### Where it rocks
 * when speed/support of many image formats is needed
 * when you often fiddle with metadata, so you got files that have it different 
 
-###Where it socks
+### Where it socks
 * when you need comparison of 1:1 image, but of different formats (original raw and DNG, TIFF with different compression type)
 * when you need to automate deletion (script is so simple, you can do change it, tho; for Windows it's always safer to use recycle bin and for command line I recommend my light and fast [recycle.exe](https://github.com/Krzysiu/cmdwinutils))
 * when files are slightly different (it doesn't do any perpetual checking. For that, I recommend [Czkawka](https://github.com/qarmin/czkawka).
@@ -16,7 +16,7 @@ A simple **cross-platform** (Windows, Linux, MacOS and many other) PHP script to
 * [optional] for color output, Windows 10 or most Linux distros
 * [optional] for good Unicode vs. PHP vs. Exiftool support, I'd recommend turning on Unicode support in Windows (see [this tutorial](https://stackoverflow.com/questions/9514300/text-encoding-on-wscript-arguments/79405392#79405392))
 
-###Config (optional)
+### Config (optional)
 All config is inside PHP file, every setting is described and it will work well without additional config, but if you wish to set it up, here are possible settings:
 * `recursiveMode` - possible values:
      - `0` - non-recursive
@@ -41,7 +41,7 @@ All config is inside PHP file, every setting is described and it will work well 
 6) changing directory will force the tool to rescan. 
 
 ### Example output
-####Text form
+#### Text form
 ```
 D:\_FOTO\ImageDataDupes>php digest.php D:\_FOTO\20241115INDIANBUTTERFLYTEA
 [INFO] Using cache file digest.txt
@@ -61,18 +61,20 @@ Duplicates of: D:\_FOTO\20241115INDIANBUTTERFLYTEA\IMG_8345.CR2
 
 [INFO] 4 duplicates found in 2 groups
 ```
-####Screenshot, because colorz and stuff
+
+#### Screenshot, because colorz and stuff
+
 ![ex](https://github.com/user-attachments/assets/fa414d86-20aa-4b4b-ab10-53e3b2e7226b)
 
 
 ### Version history
-####0.0.1 "Callopistromyia annulipes" 
+#### 0.0.1 "Callopistromyia annulipes" 
 * initial version, no changes
 
-###Known bugs
+### Known bugs
 * when cache file is present and tool will be run with different directory parameter, it will read cache, even if it's for different files
 
-###To do
+### To do
 * I'd love to have it command line parameter driven, so no more changing config in PHP
 * Some day rewrite to Python, so it could be compiled and released as binary
 * Priority: give details of differences between files (i.e. show if file has XMP, IPTC, Exif or GPS block)
