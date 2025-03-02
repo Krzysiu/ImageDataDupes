@@ -67,7 +67,8 @@ All config is inside PHP file, every setting is described and it will work well 
      - `2` - recursive, ALL sub-directories, **including** directories with trailing dot (Exiftool's `-r.`)
 * `ext` (default: `cr2,jpg,jpeg`)- comma separated extension (wihtout dot, **case insensitive**) to look for (recommended to set it up to your collection types, will greatly improve time - remember that almost always comparison between formats will not be marked as duplicate)
      - to process every extension set it either to `*` or `false`
-* `path` - kind of useless, unless for special needs. Without it, it will use directory from where it's executed or one provided as parameter.
+* `additionalExiftoolParameters` (default: `-q -q -m`) - use it to provide additional Exiftool parameters. Default which means "quiet mode, level 2" and "ignore minor errors"
+* `metadataInfo` (default: `true`) - print metadata block info. Turning it off makes each run (it's not cached) slightly faster
 * `slashMode` - slash style (Windows vs. rest). **Windows will recognize Linux style, with exception** of copy/paste path into cmd line to quickly run file (paste name and hit enter) - if there are POSIX slashes on path - then it fails, so conversion enchances user experience. Possible values:
      - `0`  (default) - auto (**recommended**) - recognizes OS and sets proper value
      - `1` - Linux style (`bar/foo`)
@@ -84,15 +85,21 @@ All config is inside PHP file, every setting is described and it will work well 
 
 
 ### Version history
+#### 0.0.2b "Volucella pellucens"
+* config values can be removed - in this case, tool falls back to defaults 
+* two new configuration options: `additionalExiftoolParameters` for exiftool CLI parameters and `metadataInfo` for turning off metadata flags for slightly quicker operation
+* removed "path" from config, it's set up by command line parameter
+* [internal] mode robust comments
+* fixed broken defaults
+
 #### 0.0.2 "Volucella zonaria"
 * files now have flags, showing type of metadata it contains (in format `T-1`, where `T` is type and `1` is count of fields). See output section for more details.
 * ignoring file system links removed, it caused more problems than gave gains
-* instead tool will now notify you if file is link and what type (hard or symbolic)
+* instead it ^ tool will now notify you if file is link and what type (hard or symbolic)
 * changed color for identical files (now they are more visible - black on red, instead red on black)
 * this tool now checks for hard links as well
 * include information about type of link, if ignoring links is on
 * include version.txt in release for automated checkings of updates
-
 
 #### 0.0.1 "Callopistromyia annulipes" 
 * initial version, no changes
@@ -106,3 +113,4 @@ All config is inside PHP file, every setting is described and it will work well 
 * Some day rewrite to Python, so it could be compiled and released as binary
 * use sqlite for caching
 * run exiftool asynchronously, so user can see progress
+

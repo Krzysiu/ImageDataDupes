@@ -1,25 +1,33 @@
 <?php
     /*
-        ImageDataDupes
-        Version 0.0.2 a.k.a. "Volucella zonaria" 
+        ImageDataDupes - version 0.0.2b a.k.a. "Volucella pellucens" 
+        https://github.com/Krzysiu/ImageDataDupes
+        
+        Copyright (c) 2020 Krzysztof "Krzysiu" Blachnicki. All rights reserved.
+        
+        This work is licensed under the terms of the MIT license.  
+        For a copy, see <https://opensource.org/licenses/MIT>.
     */
     
     $config = [];
     
     // CONFIG START - FIDDLE HERE
-    $config['recursiveMode'] = 0; 
+    $config['recursiveMode'] = 1; 
     // 0 - non-recursive
-    // 1 - recursive, all sub-directories, EXCEPT dirs starting with dot
-    // 2 - recursive, ALL sub-directories, INCLUDING dirs with trailing dot
+    // 1 - recursive, all sub-directories, EXCEPT dirs with leading dot
+    // 2 - recursive, ALL sub-directories, INCLUDING dirs with leading dot
     
+    $config['additionalExiftoolParameters'] = '-q -q -m';
+    // use it to provide additional Exiftool parameters. Default is -q -q -m
+    // which means quiet mode, level 2 and ignore minor errors
+    
+    $config['metadataInfo'] = true;
+    // prints information about metadata in file - very UX, but makes comparison
+    // slighly slower
     
     $config['ext'] = 'cr2,jpg,jpeg';
     // comma separated of extension to check, case insensitive.
     // if false, check all files
-    
-    $config['path'] = isset($argv[1]) ? $argv[1] : ".";
-    // starting path. Use one from command line parameter. If not given, 
-    //use current directory
     
     $config['slashMode'] = 0;
     // Slash style (Windows vs. rest)
@@ -30,14 +38,31 @@
     // 1 - Linux style (bar/foo)
     // 2 - Windows (bar\foo)
     
-    $config['ignoreFSLinks'] = false;
-    // if true, ignores files that are file system links - hard or symbolic
-    
     $config['cacheFile'] = 'digest.txt';
     // CONFIG END
     
-    // SN#185/v0.3.1/rev. 5
+    $path = isset($argv[1]) ? $argv[1] : ".";
     
+    // DEFAULT CONFIGURATION (DO NOT EDIT HERE)
+    $defaults = [
+    'recursiveMode' => 1,
+    'additionalExiftoolParameters' => '-q -q -m',
+    'metadataInfo' => true,
+    'ext' => 'cr2,jpg,jpeg',
+    'slashMode' => 0,
+    'cacheFile' => 'digest.txt',
+    ];
+    $config = array_merge($defaults, $config);
+    
+    // SN#185/v0.3.1/rev. 5
+    /*
+        Defines for colors - some unused, but I keep them if you want to modify look 
+        of the output. To color the line, use FG and/or BG, like S_BG_RED . S_BG_BLUE
+        and end it with S_END (important, otherwise command line will change color).
+        Colors can be looked up in https://ss64.com/nt/syntax-ansi.html#e        
+    */
+    
+    // 1) foreground
     define('S_FG_BLACK', "\e[30m");
     define('S_FG_RED', "\e[31m");
     define('S_FG_GREEN', "\e[32m");
@@ -75,7 +100,7 @@
     
     // 3) special styles
     
-    // switches fg with bg. Works one time, so using two S_REVERSE won't get to
+    // switches fg with bg works one time, so using two S_REVERSE won't get to
     // the starting point. You have to use alternating S_REVERSE and S_UNREVERSE
     define('S_REVERSE', "\e[7m");
     define('S_UNREVERSE', "\e[27m"); // switches fg with bg (works one time)
@@ -107,8 +132,8 @@
     if ($config['ext']) $params .= ' ' . implode(' ', array_map(fn($ext) => "-ext $ext", explode(',', $config['ext'])));
     if (PHP_OS_FAMILY === "Windows" && $config['slashMode'] === 0) $config['slashMode'] = 2;
     if (!file_exists($config['cacheFile'])) {
-        $cmd = "exiftool {$params} -q -q -m -p " . '"$filepath|$imagedatamd5"' . " {$config['path']} > " . $config['cacheFile'];
-        clog("First run, getting data. It might take a long time...{$eol}You may stepp your tea now (1-3 minutes for green, about 5 for black){$eol}");
+        $cmd = "exiftool {$params} {$config['additionalExiftoolParameters']} -p " . '"$filepath|$imagedatamd5"' . " {$path} > " . $config['cacheFile'];
+        clog("First run, getting data. It might take a long time...{$eol}You may step your tea now (1-3 minutes for green, about 5 for black){$eol}");
         exec($cmd);
         
     } else clog(['Using cache file %s', $config['cacheFile']]);
@@ -117,45 +142,55 @@
     if ($config['slashMode'] == 2) $data = str_replace('/', "\\", $data); 
     foreach (explode("\r\n", $data) as $line) {
         list($path, $digest) = explode("|", $line);
-        
         if (file_exists($path) && $digest) $out[$path] = $digest;
     }
-    clog(["Getting data done! Found %d files, checking for duplicates", count($out)]);
+
+    clog(["Getting data done! Found %d file%s, checking for duplicates", count($out), count($out) === 1 ? '' : 's']);
     echo $hr . $eol. $eol;
-    $dcG = 0;
+    $dcG = 0; // counters for duplicates (dc) and groups (dcG)
     $dc = 0;
     foreach ($out as $path => $digest) {
         if ($dupes = getDupes($digest, $out, $path)) { 
             $dcG++;
             $dc += count($dupes);
             $hash = md5_file($path); 
-            echo 'Duplicates of: ' . S_FG_BRIGHT_WHITE . $path . S_END . ' ' . exifToolGetBlocks($path) .  PHP_EOL;
+            echo 'Duplicates of: ' . S_FG_BRIGHT_WHITE . $path . S_END . ' ' . exifToolGetBlocks($path, $config['metadataInfo']) .  PHP_EOL;
             foreach ($dupes as $dupe) {
                 $dhash = md5_file($dupe); 
                 
                 $sizediff = filesize($path) - filesize($dupe);
                 $diffcolor = ($sizediff > 0) ? S_FG_BRIGHT_GREEN : S_FG_BRIGHT_YELLOW;
                 // \/ checks if file is identical (by MD5 hash) or different (then shows byte difference).
-                                if ($islink = is_link_ext($dupe)) {
+                if ($islink = is_link_ext($dupe)) {
                     switch ($islink) {
                         case 1: $identical = '[' . S_FG_BRIGHT_YELLOW . 'symbolic link' . S_END . ']'; break;
                         case 2: $identical = '[' . S_FG_BRIGHT_YELLOW . 'hard link' . S_END . ']'; break;
                     }
-                } elseif ($sizediff === 0 && $hash !== $dhash) {
+                    } elseif ($sizediff === 0 && $hash !== $dhash) {
                     $identical = '[' . S_FG_BRIGHT_CYAN . 'different, same size' . S_END. ']';
                 } else $identical = $hash === $dhash ? '[' . S_BG_BRIGHT_RED . S_FG_BLACK . 'identical' . S_END . ']' : sprintf('[' . S_FG_BRIGHT_MAGENTA . 'different ' . S_END . '(%s%+db%s)]', $diffcolor, $sizediff, S_END);
- 
-                echo ' * ' . $dupe . ' ' . exifToolGetBlocks($dupe) . " {$identical}{$eol}";
-                unset($out[$dupe]);
+                
+                echo ' * ' . $dupe . ' ' . exifToolGetBlocks($dupe, $config['metadataInfo']) . " {$identical}{$eol}";
+                unset($out[$dupe]); // important, to avoid A>BC, B>AC, C>AB
             }
             unset($out[$path]);
             echo $hr . $eol. $eol;
         }
     }
     echo $eol;
-    clog(['%s duplicates found in %s groups', S_FG_BRIGHT_RED . $dc . S_END, S_FG_BRIGHT_RED . $dcG . S_END]);
+    clog(['%s duplicate%s found in %s group%s', S_FG_BRIGHT_RED . $dc . S_END, $dc === 1 ? '' : 's', S_FG_BRIGHT_RED . $dcG . S_END, $dcG === 1 ? '' : 's']);
     
-    // specialized array search
+    /**
+        * This function searches for elements in the array ($haystack) that match the value $needle
+        * and returns the keys of these elements. Optionally, a specific key can be ignored in the results
+        * if the $checkKey parameter is set.
+        *
+        * @param mixed $needle The value to search for in the array.
+        * @param array $haystack The array to search through.
+        * @param mixed $checkKey (Optional) The key whose results should be ignored. 
+        *                        If not set, the function returns all matching results.
+        * @return array|false An array of keys of the matched elements or false if no matches were found.
+    */
     function getDupes($needle, $haystack, $checkKey = false) {
         $out = [];
         foreach ($haystack as $k => $v) {
@@ -198,6 +233,14 @@
         return $msg;
     }            
     
+    /**
+        * Extended version of the native is_link function.
+        * This function checks if a given path is either a symbolic link or a hard link.
+        * It does not check for .lnk files or Linux-style shortcuts, as it's irrelevant here.
+        *
+        * @param string $path The file path to check.
+        * @return bool|int Returns 1 if it's a symbolic link, 2 if it's a hard link, or false if it's neither.
+    */
     function is_link_ext($path) {
         if (is_link($path)) return 1; // symbolic link
         if (stat($path)['nlink'] > 1)  return 2; // hardlink
@@ -205,11 +248,21 @@
         return false;
     }            
     
-    function exifToolGetBlocks($path) {
+    /**
+        * Function that attempts to retrieve information about the used metadata blocks
+        * and presents it in a specific format, including EXIF, GPS, XMP, and IPTC data.
+        * It utilizes the `exiftool` command to extract metadata and processes the results.
+        *
+        * @param string $path The file path from which to extract metadata.
+        * @param bool $use If false, turns off fetching data
+        * @return string|false Returns a formatted string with metadata information flags or false if the exiftool command fails.
+    */
+    function exifToolGetBlocks($path, $use) {
+        if (!$use) return ''; // feature turned off, return nothing
         $flags = [];
         exec("exiftool -fast -exif:all -gps:all -xmp:all -iptc:all -json -g \"{$path}\"", $out, $exit);
         if ($exit !== 0) return false; //exiftool failed
-        $out = json_decode(implode($out), true)[0];
+        $out = json_decode(implode($out), true)[0]; // get array of results, grouped in first level as metadata blocks
         
         if (isset($out['EXIF'])) {
             $gps = array_filter($out['EXIF'], function ($key) { return strpos($key, 'GPS') !== false;}, ARRAY_FILTER_USE_KEY);
@@ -221,4 +274,4 @@
         if (isset($out['IPTC'])) $flags[] = S_FG_BRIGHT_CYAN . 'I-' . count($out['IPTC']);
         return S_BG_BRIGHT_BLACK . implode(' ', $flags) . S_END;
         
-    }    
+    }
