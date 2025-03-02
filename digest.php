@@ -1,13 +1,13 @@
 <?php
     /*
         ImageDataDupes
-        Version 0.0.1 a.k.a. "Callopistromyia annulipes" 
+        Version 0.0.2 a.k.a. "Volucella zonaria" 
     */
     
     $config = [];
     
     // CONFIG START - FIDDLE HERE
-    $config['recursiveMode'] = 1; 
+    $config['recursiveMode'] = 0; 
     // 0 - non-recursive
     // 1 - recursive, all sub-directories, EXCEPT dirs starting with dot
     // 2 - recursive, ALL sub-directories, INCLUDING dirs with trailing dot
@@ -30,8 +30,8 @@
     // 1 - Linux style (bar/foo)
     // 2 - Windows (bar\foo)
     
-    $config['ignoreSymbolicLinks'] = true;
-    // self-explanatory - if true, it doesn't check symbolic links
+    $config['ignoreFSLinks'] = false;
+    // if true, ignores files that are file system links - hard or symbolic
     
     $config['cacheFile'] = 'digest.txt';
     // CONFIG END
@@ -117,8 +117,8 @@
     if ($config['slashMode'] == 2) $data = str_replace('/', "\\", $data); 
     foreach (explode("\r\n", $data) as $line) {
         list($path, $digest) = explode("|", $line);
-        if (file_exists($path) && ($config['ignoreSymbolicLinks'] && !is_link($path)) && $digest) $out[$path] = $digest;
         
+        if (file_exists($path) && $digest) $out[$path] = $digest;
     }
     clog(["Getting data done! Found %d files, checking for duplicates", count($out)]);
     echo $hr . $eol. $eol;
@@ -129,18 +129,23 @@
             $dcG++;
             $dc += count($dupes);
             $hash = md5_file($path); 
-            echo 'Duplicates of: ' . S_FG_BRIGHT_WHITE . $path . S_END . PHP_EOL;
+            echo 'Duplicates of: ' . S_FG_BRIGHT_WHITE . $path . S_END . ' ' . exifToolGetBlocks($path) .  PHP_EOL;
             foreach ($dupes as $dupe) {
-                
                 $dhash = md5_file($dupe); 
                 
                 $sizediff = filesize($path) - filesize($dupe);
                 $diffcolor = ($sizediff > 0) ? S_FG_BRIGHT_GREEN : S_FG_BRIGHT_YELLOW;
                 // \/ checks if file is identical (by MD5 hash) or different (then shows byte difference).
-                if ($sizediff === 0 && $hash !== $dhash) {
+                                if ($islink = is_link_ext($dupe)) {
+                    switch ($islink) {
+                        case 1: $identical = '[' . S_FG_BRIGHT_YELLOW . 'symbolic link' . S_END . ']'; break;
+                        case 2: $identical = '[' . S_FG_BRIGHT_YELLOW . 'hard link' . S_END . ']'; break;
+                    }
+                } elseif ($sizediff === 0 && $hash !== $dhash) {
                     $identical = '[' . S_FG_BRIGHT_CYAN . 'different, same size' . S_END. ']';
-                } else $identical = $hash === $dhash ? '[' . S_FG_BRIGHT_RED . 'identical' . S_END . ']' : sprintf('[' . S_FG_BRIGHT_MAGENTA . 'different ' . S_END . '(%s%+db%s)]', $diffcolor, $sizediff, S_END);
-                echo ' * ' . $dupe . " {$identical}" . PHP_EOL;
+                } else $identical = $hash === $dhash ? '[' . S_BG_BRIGHT_RED . S_FG_BLACK . 'identical' . S_END . ']' : sprintf('[' . S_FG_BRIGHT_MAGENTA . 'different ' . S_END . '(%s%+db%s)]', $diffcolor, $sizediff, S_END);
+ 
+                echo ' * ' . $dupe . ' ' . exifToolGetBlocks($dupe) . " {$identical}{$eol}";
                 unset($out[$dupe]);
             }
             unset($out[$path]);
@@ -192,3 +197,28 @@
         if ($status === 0) die(1);
         return $msg;
     }            
+    
+    function is_link_ext($path) {
+        if (is_link($path)) return 1; // symbolic link
+        if (stat($path)['nlink'] > 1)  return 2; // hardlink
+        // won't check for .lnk or Linux variety of shortcuts, it's pointless here
+        return false;
+    }            
+    
+    function exifToolGetBlocks($path) {
+        $flags = [];
+        exec("exiftool -fast -exif:all -gps:all -xmp:all -iptc:all -json -g \"{$path}\"", $out, $exit);
+        if ($exit !== 0) return false; //exiftool failed
+        $out = json_decode(implode($out), true)[0];
+        
+        if (isset($out['EXIF'])) {
+            $gps = array_filter($out['EXIF'], function ($key) { return strpos($key, 'GPS') !== false;}, ARRAY_FILTER_USE_KEY);
+            
+            if (count($out['EXIF']) - count($gps) > 0) $flags[] = S_FG_BRIGHT_YELLOW . 'E-' . (count($out['EXIF']) - count($gps));
+            if (count($gps) > 0) $flags[] = S_FG_BRIGHT_GREEN . 'G-' . count($gps);
+        }
+        if (isset($out['XMP'])) $flags[] = S_FG_BRIGHT_RED . 'X-' . count($out['XMP']);
+        if (isset($out['IPTC'])) $flags[] = S_FG_BRIGHT_CYAN . 'I-' . count($out['IPTC']);
+        return S_BG_BRIGHT_BLACK . implode(' ', $flags) . S_END;
+        
+    }    
