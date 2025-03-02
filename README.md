@@ -17,18 +17,26 @@ Also, to make comparison more efficient, it shows flags next to each file in for
 #### Example output
 ##### Text form
 ```
-[INFO] Using cache file digest.txt
-[INFO] Getting data done! Found 41 files, checking for duplicates
+D:\_FOTO\_TOOLS\ImageDataDupes>php digest.php D:\_FOTO
+[INFO] First run, getting data. It might take a long time...
+You may stepp your tea now (1-3 minutes for green, about 5 for black)
+
+[INFO] Getting data done! Found 43 files, checking for duplicates
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 Duplicates of: D:\_FOTO\foo.CR2 E-66 G-1 X-1
+ * D:\_FOTO\IMG_1240.CR2 E-66 G-1 X-1 I-2 [symbolic link]
  * D:\_FOTO\IMG_1245 - Copy.CR2 E-66 G-1 X-1 [identical]
- * D:\_FOTO\IMG_1245.CR2 E-66 G-1 X-1 I-2 [hard link]
+ * D:\_FOTO\IMG_1245.CR2 E-66 G-1 X-1 I-2 [different (+1903b)]
+ * D:\_FOTO\IMG_1247.CR2 E-66 G-1 X-1 I-2 [hard link]
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 Duplicates of: D:\_FOTO\IMG_1253.CR2 E-66 G-1 X-1
  * D:\_FOTO\IMG_1254.CR2 E-66 G-1 X-1 [identical]
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+
+[INFO] 5 duplicates found in 2 groups
 ```
 
 ##### Screenshot, because colorz and stuff
