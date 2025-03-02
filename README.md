@@ -1,6 +1,41 @@
 ## ImageDataDupes
 A simple **cross-platform** (Windows, Linux, MacOS and many other) PHP script to find dupilicates of  photo exact duplicates. Unlike most tools, this one will compare just image (by MD5 hash - compromise between speed and collisions statistically once per 10^64 files), so **changing metadata, like adding title or GPS data, still counts as duplicate**. It bases on **Exiftool** raw image hash, which hashes only image data, not whole file. It also means it uses rich reading abilities of the **Exiftool**, which means [enormous list of supported file types](https://exiftool.org/#supported), inlcuding all standard lossy files, **raw camera files**. It just reads file, deletion is up to you, **no changes are made by script**. 
 
+### Output
+The tool will group files into duplicate groups (first file being "parent") and it also informs you that:
+* file is identical (hash comparison)
+* file is identical in size, but contents differs
+* file has different size (it gives size delta in bytes)
+* file is a file system link (it says if it's hard or symbolic link)
+
+Also, to make comparison more efficient, it shows flags next to each file in format of `T-1` where 1 is count of metadata of `T` type:
+* E (yellow) - file has Exif
+* G (green) - GPS (take note that even without real GPS data, many cameras incorporate single GPS entry, so number would be a proper way to recognize if it's really geotagged)
+* X (red) - XMP
+* I (cyan) - IPTC
+
+#### Example output
+##### Text form
+```
+[INFO] Using cache file digest.txt
+[INFO] Getting data done! Found 41 files, checking for duplicates
+-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+Duplicates of: D:\_FOTO\foo.CR2 E-66 G-1 X-1
+ * D:\_FOTO\IMG_1245 - Copy.CR2 E-66 G-1 X-1 [identical]
+ * D:\_FOTO\IMG_1245.CR2 E-66 G-1 X-1 I-2 [hard link]
+-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+Duplicates of: D:\_FOTO\IMG_1253.CR2 E-66 G-1 X-1
+ * D:\_FOTO\IMG_1254.CR2 E-66 G-1 X-1 [identical]
+-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+```
+
+##### Screenshot, because colorz and stuff
+
+![example](https://github.com/user-attachments/assets/53d05729-1b0a-47af-a908-b38f728fad9a)
+
+
 ### Where it rocks
 * when speed/support of many image formats is needed
 * when you often fiddle with metadata, so you got files that have it different 
@@ -29,7 +64,6 @@ All config is inside PHP file, every setting is described and it will work well 
      - `0`  (default) - auto (**recommended**) - recognizes OS and sets proper value
      - `1` - Linux style (`bar/foo`)
      - `2` - Windows (`bar\foo`)
-* `ignoreSymbolicLinks` - if true, it ommits files that are symbolic link (hard needs testing, but seems like they doesn't count and there's no support so far for Windows `.lnk` files)
 * `cacheFile` - name of the file with cached hashes, it's unlikely you need to change it
 
 ### Installation/executing:
@@ -40,42 +74,27 @@ All config is inside PHP file, every setting is described and it will work well 
 5) after it's complete, you may review files. Next time full scan won't happen, so you may delete files and then just run it again to see difference
 6) changing directory will force the tool to rescan. 
 
-### Example output
-#### Text form
-```
-D:\_FOTO\ImageDataDupes>php digest.php D:\_FOTO\20241115INDIANBUTTERFLYTEA
-[INFO] Using cache file digest.txt
-[INFO] Getting data done! Found 35 files, checking for duplicates
--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-
-Duplicates of: D:\_FOTO\20241115INDIANBUTTERFLYTEA\IMG_8335.CR2
- * D:\_FOTO\20241115INDIANBUTTERFLYTEA\żółć.CR2 [identical]
--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-
-Duplicates of: D:\_FOTO\20241115INDIANBUTTERFLYTEA\IMG_8345.CR2
- * D:\_FOTO\20241115INDIANBUTTERFLYTEA\IMG_8346 GPS.CR2 [different (+7148b)]
- * D:\_FOTO\20241115INDIANBUTTERFLYTEA\IMG_8346.CR2 [different, same size]
- * D:\_FOTO\20241115INDIANBUTTERFLYTEA\foobar\IMG_8346.CR2 [identical]
--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-
-
-[INFO] 4 duplicates found in 2 groups
-```
-
-#### Screenshot, because colorz and stuff
-
-![ex](https://github.com/user-attachments/assets/fa414d86-20aa-4b4b-ab10-53e3b2e7226b)
-
 
 ### Version history
+#### 0.0.2 "Volucella zonaria"
+* files now have flags, showing type of metadata it contains (in format `T-1`, where `T` is type and `1` is count of fields). See output section for more details.
+* ignoring file system links removed, it caused more problems than gave gains
+* instead tool will now notify you if file is link and what type (hard or symbolic)
+* changed color for identical files (now they are more visible - black on red, instead red on black)
+* this tool now checks for hard links as well
+* include information about type of link, if ignoring links is on
+* include version.txt in release for automated checkings of updates
+
+
 #### 0.0.1 "Callopistromyia annulipes" 
 * initial version, no changes
 
 ### Known bugs
 * when cache file is present and tool will be run with different directory parameter, it will read cache, even if it's for different files
+* file will be marked as link if it's hardlinked to file outside search scope
 
 ### To do
 * I'd love to have it command line parameter driven, so no more changing config in PHP
 * Some day rewrite to Python, so it could be compiled and released as binary
-* Priority: give details of differences between files (i.e. show if file has XMP, IPTC, Exif or GPS block)
-* ability to ignore Windows links (lnk) and hard links
+* use sqlite for caching
+* run exiftool asynchronously, so user can see progress
